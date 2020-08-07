@@ -57,9 +57,10 @@ loop_cnt   EQU	0x0E
 char_count EQU	0x0F
 character0 EQU	0x10
 character1 EQU	0x11
-fsr_bck    EQU	0x12
+character2 EQU	0x12
+fsr_bck    EQU	0x13
   
-#define WAIT_CONST 			0x23
+#define WAIT_CONST 			0x0F
 #define IDLE 	   			0x00
 #define WAIT_DATA  			0x01
 #define WAIT_FALLING_EDGE	0x02
@@ -70,13 +71,14 @@ fsr_bck    EQU	0x12
 	goto    start
 	ORG     0x000
 
-init
+
+init	
     clrf PORTA
     clrf PORTB
-	
+    
     movlw 0x00
     tris PORTB
-		
+        
     movlw 0xf8
     tris PORTA
     
@@ -85,6 +87,7 @@ init
     
     clrf state
     clrf loop_cnt
+    clrf config_reg
     
     movlw WAIT_CONST
     movwf counter
@@ -100,10 +103,27 @@ init
     movlw 0x7
     movwf digit2
     retlw 0
+    
 
 start
     call init
+    
 main
+    btfsc config_reg, 7
+    sleep
+    btfsc config_reg, 6
+    goto clear_display
+    
+	decfsz counter
+	goto clear_display
+	
+	movlw 0x3F
+	andwf config_reg, w
+	movwf counter
+    incf counter
+	
+	decfsz general
+    goto small_display
 ;    call timer
 ;    movwf general
 ;    btfsc general, 0
@@ -132,12 +152,13 @@ small_display
     goto read_io
     
 end_read_io    
-    decfsz general
-    goto small_display
-    goto display
-         
+    
+;    goto display
+        
     goto main
 
+clear_display
+    clrf portb
 
 read_io
 	movlw IDLE
@@ -167,7 +188,7 @@ read_io
 	;retlw 0x00
 
 idle_state
-	bsf portb, 0x07 ; Debug
+;	bsf portb, 0x07 ; Debug
 	
 	btfsc porta, 0x03
 	goto end_read_io
@@ -188,7 +209,7 @@ wait_data_state
 	decfsz loop_cnt
 	goto end_read_io
 	
-	bcf portb, 0x07 ; Debug
+;	bcf portb, 0x07 ; Debug
 		
 	btfss porta, 0x03
 	goto weiter0
@@ -273,8 +294,8 @@ set_digit
     andwf fsr_bck, w
     movwf FSR
      
-    retlw 0x00
-    		
+    retlw 0x00   
+    
 power_2
     andlw 0x03
     addwf PCL
@@ -282,20 +303,7 @@ power_2
     retlw 0x02
     retlw 0x04
     retlw 0x08
-    
-timer
-    movfw counter
-    subwf TMR0, w
-    btfss STATUS, Z
-    retlw 0x01
-    
-    movlw WAIT_CONST
-    addwf counter, f
-    retlw 0x00
+
 ; remaining code goes here
 
-END ; directive 'end of program'
-
-
-
-
+    END ; directive 'end of program'
