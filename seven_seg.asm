@@ -11,7 +11,7 @@
 ;                                                                     *
 ;**********************************************************************
 ;                                                                     *
-;    Filename:	    blink.asm                                           *
+;    Filename:	   blink.asm                                           *
 ;    Date:                                                            *
 ;    File Version:                                                    *
 ;                                                                     *
@@ -59,9 +59,12 @@ character0 EQU	0x10
 character1 EQU	0x11
 character2 EQU	0x12
 fsr_bck    EQU	0x13
+crc_reg    EQU	0x14
+crc_data   EQU	0x15
+crc_sum    EQU	0x15
   
 #define WAIT_CONST 			0x0F
-#define IDLE 	   			0x00
+#define IDLE 	  			0x00
 #define WAIT_DATA  			0x01
 #define WAIT_FALLING_EDGE	0x02
 #define WAIT_HIGH_PULS		0x03
@@ -82,9 +85,6 @@ init
     movlw 0xf8
     tris PORTA
     
-    movlw 0x03
-    option 
-    
     clrf state
     clrf loop_cnt
     clrf config_reg
@@ -103,10 +103,26 @@ init
     movlw 0x7
     movwf digit2
     retlw 0
+
+init0        
+    movlw 0x00
+    tris PORTB
+        
+    movlw 0xf8
+    tris PORTA
     
+    clrf state
+    bcf config_reg, 7
+   
+    movlw 0x0B
+    movwf FSR
+    retlw 0    
 
 start
+    btfsc STATUS, 3
     call init
+    btfss STATUS, 3
+    call init0
     
 main
     btfsc config_reg, 7
@@ -124,10 +140,6 @@ main
 	
 	decfsz general
     goto small_display
-;    call timer
-;    movwf general
-;    btfsc general, 0
-;    goto main
       
 display
     movlw 0x03
@@ -152,8 +164,6 @@ small_display
     goto read_io
     
 end_read_io    
-    
-;    goto display
         
     goto main
 
@@ -180,36 +190,27 @@ read_io
 	subwf state, w
 	btfsc STATUS, Z
 	goto wait_high_puls_state
-;end_read_io
-	
-	;btfsc porta, 0x03
-	;bsf portb, 0x07
-	;bcf portb, 0x07
-	;retlw 0x00
 
 idle_state
-;	bsf portb, 0x07 ; Debug
-	
 	btfsc porta, 0x03
 	goto end_read_io
 	
 	movlw 0x11
 	movwf loop_cnt
-	movlw 0x0F
+	movlw 0x17
 	movwf char_count
 	clrf character0
 	clrf character1
+	clrf character2
 	movlw WAIT_DATA
 	movwf state
-		 
+		
 	goto end_read_io
 
 wait_data_state	
 	
 	decfsz loop_cnt
 	goto end_read_io
-	
-;	bcf portb, 0x07 ; Debug
 		
 	btfss porta, 0x03
 	goto weiter0
@@ -227,13 +228,26 @@ weiter0
 	goto end_read_io
 	
 wait_falling_edge_state
-;	bsf portb, 0x07 ; Debug
-	
 	movlw 0x00
 	subwf char_count, w
 	
 	btfss STATUS, Z
 	goto char_count_positif
+	
+	clrf crc_reg
+	movfw character2
+	movfw crc_data
+	call crc_table
+	movfw character1
+	movfw crc_data
+	call crc_table
+	movfw character0
+	movfw crc_data
+	call crc_table
+	
+	movlw 0x00
+	subwf crc_reg
+	btfsc STATUS, Z
 	call set_digit
 	clrf state
 	goto end_read_io
@@ -249,10 +263,11 @@ not_time_out_wait_falling_edge_state
 weiter0_wait_falling_edge_state
 	rlf character0
 	rlf character1
+	rlf character2
 	bcf character0, 0
 	
 	decf char_count
-;	goto end_read_io
+
 weiter_wait_data
 	movlw WAIT_DATA
 	movwf state
@@ -260,12 +275,9 @@ weiter_wait_data
 	movwf loop_cnt
 	goto end_read_io
 	
-wait_high_puls_state
-;	bsf portb, 0x07 ; Debug
-		
+wait_high_puls_state		
 	btfss porta, 0x03
 	goto weiter0_wait_high_puls_state
-;	bsf portb, 0x07 ; Debug
 	movlw WAIT_FALLING_EDGE
 	movwf state
 	movlw 0xf0
@@ -284,11 +296,11 @@ set_digit
     movlw 0x0A
     movwf FSR
     
-    movfw character1
+    movfw character2
     andlw 0x03
     
     addwf FSR
-    movfw character0
+    movfw character1
     movwf INDF
     movlw 0x1F
     andwf fsr_bck, w
@@ -303,7 +315,36 @@ power_2
     retlw 0x02
     retlw 0x04
     retlw 0x08
-
+    
+crc_table
+	; crc_data data
+	; crc_reg  crc
+	; crc_sum  sum
+	; fsr_bck  loop_cnt
+	movlw 0x08
+	movwf fsr_bck
+crc_loop
+	movfw crc_reg
+	xorwf crc_data, w
+	movfw crc_sum
+	rlf crc_reg
+	bcf crc_reg, 0
+	
+	btfss crc_sum, 7
+	goto crc_weiter
+	movlw 0x1D
+	xorwf crc_reg
+crc_weiter
+	rlf crc_data
+	bcf crc_data, 0
+	decfsz fsr_bck
+	goto crc_loop
+	retlw 0
+	
+	
+		
+	
+	
 ; remaining code goes here
 
     END ; directive 'end of program'
