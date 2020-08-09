@@ -30,7 +30,8 @@
 ;**********************************************************************
 
     list      p=16F54             ; list directive to define processor
-#include <p16f5x.inc>         ; processor specific variable definitions
+#include <p16f5x.inc>
+; processor specific variable definitions
 
     __CONFIG   _CP_OFF & _WDT_OFF & _RC_OSC
 

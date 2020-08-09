@@ -1,0 +1,28 @@
+@startuml
+'clock clk with period 5
+concise "Command" as db
+
+db is x
+
+scale 30 as 100 pixels
+
+@0
+
+@+10
+db is address
+@db
+@+0 <-> @+50 : 1. Byte
+
+@+50
+db is value
+@db
+@+0 <-> @+50 : 2. Byte
+
+@+50
+db is crc8
+@db
+@+0 <-> @+50 : CRC
+
+@+50
+db is x
+@enduml
