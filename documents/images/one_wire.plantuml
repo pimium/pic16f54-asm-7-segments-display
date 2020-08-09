@@ -1,0 +1,58 @@
+@startuml
+'clock clk with period 5
+concise "Data" as db
+robust "DIO" as dio
+robust "Sample" as st
+
+db is x
+st is low
+dio is low
+
+scale 300 as 600 pixels
+
+@0
+dio is high
+st is low
+
+@+10
+dio is low
+st is low
+db is 1
+@db
+@+0 <-> @+100 : DL
+@st
+@+0 <-> @+40 : TR
+@dio
+@+0 <-> @+10 : EN
+
+@+10
+dio is high
+
+
+@+30
+st is high
+@+1
+st is low
+
+@+59
+db is x
+@db
+@+0 <-> @+30 : IL
+
+@+30
+dio is low
+db is 0
+@st
+@+0 <-> @+40 : TR
+@dio
+@+0 <-> @+10 : EN
+
+@+40
+st is high
+@+1
+st is low
+
+@+59
+dio is high
+db is x
+@enduml

@@ -1,0 +1,42 @@
+@startuml
+'clock clk with period 5
+concise "Data" as db
+robust "DIO" as dio
+robust "Remote\nSample" as st
+
+db is x
+st has Vcc,GND
+dio has Vcc,GND
+
+scale 200 as 400 pixels
+
+@0
+dio is Vcc
+st is GND
+
+@+40
+dio is GND
+st is GND
+db is 1
+@db
+@+0 <-> @+100 : Write "1" Slot
+@st
+@+0 <-> @+39 : TR
+@dio
+@+0 <-> @+10 : EN
+
+@+10
+dio is Vcc
+
+@+30
+st is Vcc
+@+1
+st is GND
+@st
+@+1 <-> @+59 : TN
+
+@+59
+db is x
+dio is {GND,Vcc} #SlateGrey
+
+@enduml
