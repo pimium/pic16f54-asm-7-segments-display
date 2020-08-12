@@ -62,7 +62,7 @@ character2 EQU	0x12
 fsr_bck    EQU	0x13
 crc_reg    EQU	0x14
 crc_data   EQU	0x15
-crc_sum    EQU	0x15
+crc_sum    EQU	0x16
   
 #define WAIT_CONST 			0x0F
 #define IDLE 	  			0x00
@@ -237,13 +237,13 @@ wait_falling_edge_state
 	
 	clrf crc_reg
 	movfw character2
-	movfw crc_data
+	movwf crc_data
 	call crc_table
 	movfw character1
-	movfw crc_data
+	movwf crc_data
 	call crc_table
 	movfw character0
-	movfw crc_data
+	movwf crc_data
 	call crc_table
 	
 	movlw 0x00
@@ -318,16 +318,12 @@ power_2
     retlw 0x08
     
 crc_table
-	; crc_data data
-	; crc_reg  crc
-	; crc_sum  sum
-	; fsr_bck  loop_cnt
 	movlw 0x08
 	movwf fsr_bck
 crc_loop
 	movfw crc_reg
 	xorwf crc_data, w
-	movfw crc_sum
+	movwf crc_sum
 	rlf crc_reg
 	bcf crc_reg, 0
 	
@@ -341,9 +337,6 @@ crc_weiter
 	decfsz fsr_bck
 	goto crc_loop
 	retlw 0
-	
-	
-		
 	
 	
 ; remaining code goes here
