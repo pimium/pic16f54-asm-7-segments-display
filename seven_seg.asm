@@ -11,7 +11,7 @@
 ;                                                                     *
 ;**********************************************************************
 ;                                                                     *
-;    Filename:	   blink.asm                                           *
+;    Filename:	   seven_seg.asm                                      *
 ;    Date:                                                            *
 ;    File Version:                                                    *
 ;                                                                     *
@@ -55,20 +55,22 @@ digit0     Equ	0x0B
 digit1     Equ	0x0C
 digit2     Equ	0x0D
 loop_cnt   EQU	0x0E
-char_count EQU	0x0F
-character0 EQU	0x10
-character1 EQU	0x11
-character2 EQU	0x12
-fsr_bck    EQU	0x13
-crc_reg    EQU	0x14
-crc_data   EQU	0x15
-crc_sum    EQU	0x16
+bit_count  EQU	0x0F
+char_count EQU	0x10
+character0 EQU	0x11
+character1 EQU	0x12
+character2 EQU	0x13
+fsr_bck    EQU	0x14
+crc_reg    EQU	0x15
+crc_data   EQU	0x16
+crc_sum    EQU	0x17
   
 #define WAIT_CONST 			0x0F
 #define IDLE 	  			0x00
 #define WAIT_DATA  			0x01
 #define WAIT_FALLING_EDGE	0x02
 #define WAIT_HIGH_PULS		0x03
+#define EXTRACT_BYTE		0x04
   
 ;**********************************************************************
 	ORG     0x1FF             ; processor reset vector
@@ -86,6 +88,8 @@ init
     movlw 0xf8
     tris PORTA
     
+    clrf char_count
+    clrf crc_reg
     clrf state
     clrf loop_cnt
     clrf config_reg
@@ -112,6 +116,8 @@ init0
     movlw 0xf8
     tris PORTA
     
+    clrf char_count
+    clrf crc_reg
     clrf state
     bcf config_reg, 7
    
@@ -175,7 +181,7 @@ read_io
 	movlw IDLE
 	subwf state, w
 	btfsc STATUS, Z
-	goto idle_state
+	goto IDLE_STATE
 	
 	movlw WAIT_FALLING_EDGE
 	subwf state, w
@@ -185,31 +191,34 @@ read_io
 	movlw WAIT_DATA
 	subwf state, w
 	btfsc STATUS, Z
-	goto wait_data_state
+	goto WAIT_DATA_STATE
 	
 	movlw WAIT_HIGH_PULS
 	subwf state, w
 	btfsc STATUS, Z
-	goto wait_high_puls_state
+	goto WAIT_HIGH_PULS_STATE
+	
+	movlw EXTRACT_BYTE
+	subwf state, w
+	btfsc STATUS, Z
+	goto EXTRACT_BYTE_STATE
+	goto end_read_io
 
-idle_state
+IDLE_STATE
 	btfsc porta, 0x03
 	goto end_read_io
 	
-	movlw 0x11
+	movlw 0x0A
 	movwf loop_cnt
-	movlw 0x17
-	movwf char_count
+	movlw 0x07
+	movwf bit_count
 	clrf character0
-	clrf character1
-	clrf character2
 	movlw WAIT_DATA
 	movwf state
 		
 	goto end_read_io
 
-wait_data_state	
-	
+WAIT_DATA_STATE		
 	decfsz loop_cnt
 	goto end_read_io
 		
@@ -227,56 +236,83 @@ weiter0
 	movlw 0x30
 	movwf loop_cnt
 	goto end_read_io
-	
-wait_falling_edge_state
-	movlw 0x00
+
+EXTRACT_BYTE_STATE
+	incf char_count
+	movlw 0x01
 	subwf char_count, w
-	
-	btfss STATUS, Z
-	goto char_count_positif
-	
-	clrf crc_reg
-	movfw character2
+	btfsc STATUS, Z
+	goto extract_character2
+	movlw 0x02
+	subwf char_count, w
+	btfsc STATUS, Z
+	goto extract_character1
+	movlw 0x03
+	subwf char_count, w
+	btfsc STATUS, Z
+	goto extract_character0
+extract_character2
+	movfw character0
+	movwf character2
 	movwf crc_data
 	call crc_table
-	movfw character1
+	clrf state
+	goto end_read_io
+extract_character1
+	movfw character0
+	movwf character1
 	movwf crc_data
 	call crc_table
+	clrf state
+	goto end_read_io
+extract_character0
 	movfw character0
 	movwf crc_data
 	call crc_table
-	
+	clrf char_count
+	clrf crc_reg
+	clrf state
 	movlw 0x00
 	subwf crc_reg
 	btfsc STATUS, Z
 	call set_digit
-	clrf state
 	goto end_read_io
 	
-char_count_positif	
+wait_falling_edge_state
+	movlw 0x00
+	subwf bit_count, w
+	
+	btfss STATUS, Z
+	goto bit_count_positif
+
+	movlw EXTRACT_BYTE
+	movwf state
+	goto end_read_io
+	
+bit_count_positif	
 	btfss porta, 0x03
 	goto weiter0_wait_falling_edge_state
 	decfsz loop_cnt
 	goto not_time_out_wait_falling_edge_state
+	clrf char_count
+	clrf crc_reg
 	clrf state
 not_time_out_wait_falling_edge_state
 	goto end_read_io
 weiter0_wait_falling_edge_state
 	rlf character0
-	rlf character1
-	rlf character2
 	bcf character0, 0
 	
-	decf char_count
+	decf bit_count
 
 weiter_wait_data
 	movlw WAIT_DATA
 	movwf state
-	movlw 0x11
+	movlw 0x0A
 	movwf loop_cnt
 	goto end_read_io
 	
-wait_high_puls_state		
+WAIT_HIGH_PULS_STATE		
 	btfss porta, 0x03
 	goto weiter0_wait_high_puls_state
 	movlw WAIT_FALLING_EDGE
@@ -287,6 +323,8 @@ wait_high_puls_state
 weiter0_wait_high_puls_state
 	decfsz loop_cnt
 	goto not_time_out_wait_high_puls_state
+	clrf char_count
+	clrf crc_reg
 	clrf state
 not_time_out_wait_high_puls_state
 	goto end_read_io

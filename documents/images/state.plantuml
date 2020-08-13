@@ -9,8 +9,8 @@ Idle : loop_count = 4
 Idle : bit_count = 8
 Idle --> WAIT_DATA :DIO is low
 
-Byte : crc = crc8()
-Byte --> Idle
+EXTRACT_BYTE : crc = crc8()
+EXTRACT_BYTE --> Idle
 
 WAIT_DATA :
 WAIT_DATA --> WAIT_DATA : loop_count != 0 \n ##########\nloop_count--
@@ -26,7 +26,7 @@ WAIT_HIGH_PULS --> WAIT_FALLING_EDGE : DIO is high
 WAIT_FALLING_EDGE :
 WAIT_FALLING_EDGE --> Idle : loop_count == 0
 WAIT_FALLING_EDGE --> WAIT_DATA : bit_count != 0 \n & \n DIO is low
-WAIT_FALLING_EDGE --> Byte : bit_count == 0
+WAIT_FALLING_EDGE --> EXTRACT_BYTE : bit_count == 0
 WAIT_FALLING_EDGE --> WAIT_FALLING_EDGE : DIO is high \n ########\n loop_count--
 'WAIT_FALLING_EDGE --> [*]
 
