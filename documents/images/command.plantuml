@@ -2,7 +2,7 @@
 'clock clk with period 5
 concise "Command" as db
 
-db is x
+db is x #Slate
 
 scale 30 as 100 pixels
 
@@ -11,18 +11,29 @@ scale 30 as 100 pixels
 @+10
 db is address
 @db
-@+0 <-> @+50 : 1. Byte
+@+0 <-> @+40 : 1. Byte
 
-@+50
+@+40
+db is x #Slate
+@db
+@+0 <-> @+20 : TB
+
+@+20
 db is value
 @db
-@+0 <-> @+50 : 2. Byte
+@+0 <-> @+40 : 2. Byte
 
-@+50
-db is crc8
+@+40
+db is x #Slate
 @db
-@+0 <-> @+50 : CRC
+@+0 <-> @+20 : TB
 
-@+50
-db is x
+@+20
+db is CRC
+@db
+@+0 <-> @+40 : CRC
+
+@+40
+db is x #Slate
+
 @enduml

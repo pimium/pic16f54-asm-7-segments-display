@@ -206,7 +206,7 @@ read_io
 
 IDLE_STATE
 	btfsc porta, 0x03
-	goto end_read_io
+	goto byte_timeout
 	
 	movlw 0x0A
 	movwf loop_cnt
@@ -215,7 +215,12 @@ IDLE_STATE
 	clrf character0
 	movlw WAIT_DATA
 	movwf state
-		
+	
+byte_timeout	
+	decfsz loop_cnt
+	goto end_read_io
+	clrf char_count
+	clrf crc_reg
 	goto end_read_io
 
 WAIT_DATA_STATE		
@@ -269,6 +274,7 @@ extract_character0
 	movfw character0
 	movwf crc_data
 	call crc_table
+	clrf loop_cnt
 	clrf char_count
 	clrf crc_reg
 	clrf state

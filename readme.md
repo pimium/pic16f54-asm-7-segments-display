@@ -40,9 +40,9 @@ Table: Bit Timing
 
 | Symbol | Description | Min | Typ | Max | Unit |
 |:---:|:---|:---|:---:|---:|---:|
-| EN | Enable | 150 | 450 | 3100 | us |
-| TR | Time to read | 350 | 505 | 680 | us |
-| TN | Time to new bit | 150| 1500 | 6600 | us |  
+| EN | Enable | 144 | 450 | 360 | us |
+| TR | Time to read | 380 | 500 | 720 | us |
+| TN | Time to new bit | 144| 1500 | 7500 | us |  
 
 </center>
 
@@ -66,9 +66,17 @@ addresse
 value
 : 2.Byte of the command, the value to be updated.
 
-crc8
+CRC
 : The CRC, actually the crc8 with polynomial 0x1D of the 1. and 2. byte.
 
+x
+: Timeslot leave to calculate the crc8 of the actual byte.
+
+Table: Byte Timing
+
+| Symbol | Description | Min | Typ | Max | Unit |
+|:---:|:---|:---|:---:|---:|---:|
+| TB | Time to calcul the crc8 of the actual byte | 144 | 450 | 7500 | us |
 
 ### Registers
 
