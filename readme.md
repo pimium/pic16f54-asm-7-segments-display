@@ -1,15 +1,15 @@
  
-# One Wire Driver for the PIC16F54 7 segments display
+# Overview
 
-The Driver control the display over One Wire bus. The driver can set up the luminosity and shut-down the display. When the driver shutdown the display, the display can only be startup again from poweron or pushing the disable/enable-pin down. 
+The Driver control the display over One Wire bus. The driver can set up the luminosity and shut-down the display. When the driver shutdown the display, the display can only be startup again from power on or pushing the disable/enable-pin down. 
 
 The "PIC16F54 7 segments display":
 
 - 3 x 7 segments common cathode (5611AS)
 - 1 x PIC16F54 Micro-Controller
-- 3 x 2n7002 Transistors
+- 3 x 2N7002 Transistors
 
-## Features
+# Features
 
 - One wire bus
 - Disable/Enable Pin
@@ -17,23 +17,27 @@ The "PIC16F54 7 segments display":
 - Sleep (Energy saving, Then you need two pins) 
 - 3 characters
 
-## Schematic
+# Schematic
 
-The [schematic](documents/images/pic16f54-7-segments-display-schematic.pdf) and the [gerber](documents/gerber.zip) files
+The schematic[^schematic] and the gerber[^gerber] files
 
-![Schematic MCU\label{schematic_mcu}](documents/images/schematic_mcu.png){ width=80% }
+[^gerber]: documents/gerber.zip
+[^schematic]: documents/images/pic16f54-7-segments-display-schematic.pdf
+
+![Schematic MCU\label{schematic_mcu}](documents/images/schematic_mcu.png){ width=60% }
 
 ![Schematic Seven-Segments\label{schematic_seven_segment}](documents/images/schematic_seven_segment.png){ width=80% }
 
 ![Schematic Programmer and Header\label{schematic_seven_prog}](documents/images/schematic_seven_prog.png){ width=100% }
 
-## One Wire Protocol
+# One Wire Protocol
 
-### Bit Timing
+## Bit Timing
 
-![Master Write "0" Slot\label{bit_timing_0}](documents/images/bit_timing_0.png){ width=80% }
+![Master Write "0" Slot\label{bit_timing_0}](documents/images/bit_timing_0.png){ width=60% }
 
-![Master Write "1" Slot\label{bit_timing_1}](documents/images/bit_timing_1.png){ width=80% }
+![Master Write "1" Slot\label{bit_timing_1}](documents/images/bit_timing_1.png){ width=60% }
+
 
 <center>
 Table: Bit Timing
@@ -55,12 +59,12 @@ TR
 TN
 : Time the remote spend wait for new Data, this should be bigger than the minimum allowed time for EN
 
-### Command Operation
+## Command Operation
 
 
-![Command Operation\label{command}](documents/images/command.png){ width=80% }
+![Command Operation\label{command}](documents/images/command.png)
 
-addresse
+address
 : 1.Byte of the command, determines which register to be updated.
 
 value
@@ -78,7 +82,7 @@ Table: Byte Timing
 |:---:|:---|:---|:---:|---:|---:|
 | TB | Time to calcul the crc8 of the actual byte | 144 | 450 | 7500 | us |
 
-### Registers
+## Registers
 
 <center>
 
@@ -93,7 +97,7 @@ Table: Driver Registers
 
 </center>
 
-#### Option Register Bit Assignement
+### Option Register Bit Assignement
 
 This register acts as setting register.
 
@@ -119,7 +123,7 @@ SLEEP
 
 <!-- <img src="https://render.githubusercontent.com/render/math?math=e^{i \pi} = -1"> -->
 
-#### Digit x Register Bit Assignement
+### Digit x Register Bit Assignement
 
 Registers describing the segments that should light on. Writing '1' to a position will light on this segments. 
 
@@ -133,14 +137,16 @@ Table: Digit Register Bit Assignement
 
 </center>
 
-![Seven Segments\label{command}](documents/images/seven_segments.png){ width=50% }
+![Seven Segments\label{command}](documents/images/seven_segments.png){ width=30% }
 
 
 ---
 title: "One Wire Driver for the PIC16F54 7 segments display"
 author: Olivier Pimi
-date: July 29, 2020
+date: \today
 geometry: "left=3cm,right=3cm,top=2cm,bottom=2cm"
 output: pdf_document
+caption-justification : centering
+land: DE
 ---
 
