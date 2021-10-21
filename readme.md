@@ -147,6 +147,5 @@ date: \today
 geometry: "left=3cm,right=3cm,top=2cm,bottom=2cm"
 output: pdf_document
 caption-justification : centering
-land: DE
 ---
 
