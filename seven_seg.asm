@@ -11,7 +11,7 @@
 ;                                                                     *
 ;**********************************************************************
 ;                                                                     *
-;    Filename:	   seven_seg.asm                                      *
+;    Filename:     seven_seg.asm                                      *
 ;    Date:                                                            *
 ;    File Version:                                                    *
 ;                                                                     *
@@ -45,344 +45,392 @@
 ;***** VARIABLE DEFINITIONS
 porta equ PORTA
 portb equ PORTB
-; FSR equ 0x04
+;FSR   equ 0x04
  
-general    EQU  0x07        ;example variable definition
-counter    EQU  0x08        ;example variable definition
-state      EQU  0x09
-config_reg EQU  0x0A
-digit0     Equ	0x0B
-digit1     Equ	0x0C
-digit2     Equ	0x0D
-loop_cnt   EQU	0x0E
-bit_count  EQU	0x0F
-char_count EQU	0x10
-character0 EQU	0x11
-character1 EQU	0x12
-character2 EQU	0x13
-fsr_bck    EQU	0x14
-crc_reg    EQU	0x15
-crc_data   EQU	0x16
-crc_sum    EQU	0x17
-  
-#define WAIT_CONST 			0x0F
-#define IDLE 	  			0x00
-#define WAIT_DATA  			0x01
-#define WAIT_FALLING_EDGE	0x02
-#define WAIT_HIGH_PULS		0x03
-#define EXTRACT_BYTE		0x04
+act_gigit   EQU  0x07        ;example variable definition
+counter     EQU  0x08        ;example variable definition
+state       EQU  0x09
+config_reg  EQU  0x0A
+digit0      Equ  0x0B
+digit1      Equ  0x0C
+digit2      Equ  0x0D
+digit3      Equ  0x0E
+shift_state EQU  0x0F
+shift_reg   EQU  0x10
+shift_count EQU  0x11
+bit_count   EQU  0x12
+char_count  EQU  0x13
+character   EQU  0x14
+read_state  EQU  0x15
+fsr_read    EQU  0x16
+fsr_shift   EQU  0x17
+help_reg    EQU  0x18
+
+#define SER                 0x00
+#define SRCLK               0x01
+#define RCLK                0x02
+#define SRCLR               0x03
+
+#define CS                  0x00
+#define CLK                 0x01
+#define DIO                 0x02
+
+#define WAIT_CONST          0x00
+
+#define SHIFT_IDLE          0x00
+#define SHIFT_FALLING       0x01
+#define SHIFT_RISING        0x02
+#define SHIFT_RCLK          0x03
+
+#define READ_IDLE           0x00
+#define READ_FALLING        0x01
+#define READ_RISING         0x02
+#define READ_EXTRACT        0x03
+#define READ_REINIT         0x04
   
 ;**********************************************************************
-	ORG     0x1FF             ; processor reset vector
-	goto    start
-	ORG     0x000
+    ORG     0x1FF             ; processor reset vector
+    goto    start
+    ORG     0x000
 
 
-init	
+init    
     clrf PORTA
     clrf PORTB
     
     movlw 0x00
     tris PORTB
-        
-    movlw 0xf8
+    bcf portb, SRCLR
+    bsf portb, SRCLR    
+    
+    movlw 0xf7
     tris PORTA
     
     clrf char_count
-    clrf crc_reg
-    clrf state
-    clrf loop_cnt
-    clrf config_reg
+    clrf shift_state
+    clrf shift_reg
     
-    movlw WAIT_CONST
-    movwf counter
+    clrf read_state
+    clrf counter
    
-    movlw 0x0B
+    movlw 0x0E
+    movwf fsr_read
+    movwf fsr_shift
+    
+    movlw 0x0E
     movwf FSR
     clrf INDF
-        
+
+    movlw 0x08
+    movwf config_reg
     movlw 0x01
     movwf digit0
-    movlw 0x30
+    movlw 0x03
     movwf digit1
-    movlw 0x7
+    movlw 0x07
     movwf digit2
+    movlw 0x0f
+    movwf digit3
     retlw 0
-
-init0        
-    movlw 0x00
-    tris PORTB
-        
-    movlw 0xf8
-    tris PORTA
-    
-    clrf char_count
-    clrf crc_reg
-    clrf state
-    bcf config_reg, 7
-   
-    movlw 0x0B
-    movwf FSR
-    retlw 0    
 
 start
     btfsc STATUS, 3
     call init
-    btfss STATUS, 3
-    call init0
     
 main
-    btfsc config_reg, 7
-    sleep
-    btfsc config_reg, 6
-    goto clear_display
+    btfsc config_reg, 4
+    goto turn_off_leds
     
-	decfsz counter
-	goto clear_display
-	
-	movlw 0x3F
-	andwf config_reg, w
-	movwf counter
-    incf counter
-	
-	decfsz general
-    goto small_display
+    movlw 0x00
+    subwf act_gigit, f
+    btfss STATUS, Z
+    goto dimming
       
 display
-    movlw 0x03
-    movwf general
-    movlw 0x0D
+    movlw 0x04
+    movwf act_gigit
+    movlw digit3
     movwf FSR
+dimming    
+    incf counter, f
+    movlw 0x0F
+    andwf counter, f
+    andwf config_reg, w
+    subwf counter, w
+    btfsc STATUS, C
+    goto small_display
+turn_off_leds    
+    movlw 0xf0;
+    iorwf portb, f
+    goto end_display
+    
 small_display
+        
+    movlw SHIFT_IDLE
+    subwf shift_state, w
+    btfsc STATUS, Z
+    goto SHIFT_IDLE_STATE
     
-    movlw 0xf8
-    movwf porta
+    movlw SHIFT_FALLING
+    subwf shift_state, w
+    btfsc STATUS, Z
+    goto SHIFT_FALLING_STATE
     
-    movfw INDF
-    movwf portb
-    decf FSR
+    movlw SHIFT_RISING
+    subwf shift_state, w
+    btfsc STATUS, Z
+    goto SHIFT_RISING_STATE
     
-    movlw 0x01
-    subwf general,w
-     
-    call power_2
-    movwf porta 
+    movlw SHIFT_RCLK
+    subwf shift_state, w
+    btfsc STATUS, Z
+    goto SHIFT_RCLK_STATE
+end_display
     
-    goto read_io
+    movfw FSR
+    movwf fsr_shift
+    movlw 0x1F
+    andwf fsr_read, w
+    movwf FSR
+
+    movlw READ_IDLE
+    subwf read_state, w
+    btfsc STATUS, Z
+    goto READ_IDLE_STATE
     
-end_read_io    
+    movlw READ_FALLING
+    subwf read_state, w
+    btfsc STATUS, Z
+    goto READ_FALLING_STATE
+    
+    movlw READ_RISING
+    subwf read_state, w
+    btfsc STATUS, Z
+    goto READ_RISING_STATE
+    
+    movlw READ_EXTRACT  
+    subwf read_state, w
+    btfsc STATUS, Z
+    goto READ_EXTRACT_STATE
+    
+    movlw READ_REINIT  
+    subwf read_state, w
+    btfsc STATUS, Z
+    goto READ_REINIT_STATE
+end_read
+    
+    movfw FSR
+    movwf fsr_read
+    movlw 0x1F
+    andwf fsr_shift, w
+    movwf FSR
         
     goto main
 
-clear_display
-    clrf portb
 
-read_io
-	movlw IDLE
-	subwf state, w
-	btfsc STATUS, Z
-	goto IDLE_STATE
-	
-	movlw WAIT_FALLING_EDGE
-	subwf state, w
-	btfsc STATUS, Z
-	goto wait_falling_edge_state
-	
-	movlw WAIT_DATA
-	subwf state, w
-	btfsc STATUS, Z
-	goto WAIT_DATA_STATE
-	
-	movlw WAIT_HIGH_PULS
-	subwf state, w
-	btfsc STATUS, Z
-	goto WAIT_HIGH_PULS_STATE
-	
-	movlw EXTRACT_BYTE
-	subwf state, w
-	btfsc STATUS, Z
-	goto EXTRACT_BYTE_STATE
-	goto end_read_io
+READ_IDLE_STATE
 
-IDLE_STATE
-	btfsc porta, 0x03
-	goto byte_timeout
-	
-	movlw 0x0A
-	movwf loop_cnt
-	movlw 0x07
-	movwf bit_count
-	clrf character0
-	movlw WAIT_DATA
-	movwf state
-	
-byte_timeout	
-	decfsz loop_cnt
-	goto end_read_io
-	clrf char_count
-	clrf crc_reg
-	goto end_read_io
+    btfss porta, CS
+    btfsc porta, CLK
+    goto end_read
 
-WAIT_DATA_STATE		
-	decfsz loop_cnt
-	goto end_read_io
-		
-	btfss porta, 0x03
-	goto weiter0
-	incf character0
-	movlw WAIT_FALLING_EDGE
-	movwf state
-	movlw 0xf0
-	movwf loop_cnt
-	goto end_read_io
-weiter0
-	movlw WAIT_HIGH_PULS
-	movwf state
-	movlw 0x30
-	movwf loop_cnt
-	goto end_read_io
+    bsf porta, 3
+;    bcf porta, 3    
+    
+    clrf character
+    clrf char_count
+    movlw 0x08
+    movwf bit_count
+    
+    movlw READ_RISING
+    movwf read_state
+    goto end_read
 
-EXTRACT_BYTE_STATE
-	incf char_count
-	movlw 0x01
-	subwf char_count, w
-	btfsc STATUS, Z
-	goto extract_character2
-	movlw 0x02
-	subwf char_count, w
-	btfsc STATUS, Z
-	goto extract_character1
-	movlw 0x03
-	subwf char_count, w
-	btfsc STATUS, Z
-	goto extract_character0
-extract_character2
-	movfw character0
-	movwf character2
-	movwf crc_data
-	call crc_table
-	clrf state
-	goto end_read_io
-extract_character1
-	movfw character0
-	movwf character1
-	movwf crc_data
-	call crc_table
-	clrf state
-	goto end_read_io
-extract_character0
-	movfw character0
-	movwf crc_data
-	call crc_table
-	clrf loop_cnt
-	clrf char_count
-	clrf crc_reg
-	clrf state
-	movlw 0x00
-	subwf crc_reg
-	btfsc STATUS, Z
-	call set_digit
-	goto end_read_io
-	
-wait_falling_edge_state
-	movlw 0x00
-	subwf bit_count, w
-	
-	btfss STATUS, Z
-	goto bit_count_positif
 
-	movlw EXTRACT_BYTE
-	movwf state
-	goto end_read_io
-	
-bit_count_positif	
-	btfss porta, 0x03
-	goto weiter0_wait_falling_edge_state
-	decfsz loop_cnt
-	goto not_time_out_wait_falling_edge_state
-	clrf char_count
-	clrf crc_reg
-	clrf state
-not_time_out_wait_falling_edge_state
-	goto end_read_io
-weiter0_wait_falling_edge_state
-	rlf character0
-	bcf character0, 0
-	
-	decf bit_count
+READ_RISING_STATE
+    
+    bcf porta, 3
+ 
+    btfsc porta, CS
+    goto next_idle_state
 
-weiter_wait_data
-	movlw WAIT_DATA
-	movwf state
-	movlw 0x0A
-	movwf loop_cnt
-	goto end_read_io
-	
-WAIT_HIGH_PULS_STATE		
-	btfss porta, 0x03
-	goto weiter0_wait_high_puls_state
-	movlw WAIT_FALLING_EDGE
-	movwf state
-	movlw 0xf0
-	movwf loop_cnt
-	goto end_read_io
-weiter0_wait_high_puls_state
-	decfsz loop_cnt
-	goto not_time_out_wait_high_puls_state
-	clrf char_count
-	clrf crc_reg
-	clrf state
-not_time_out_wait_high_puls_state
-	goto end_read_io
-		
-set_digit
-    movfw FSR
-    movwf fsr_bck
-    movlw 0x0A
+    btfss porta, CLK
+    goto end_read
+    
+    btfsc porta, DIO
+    incf character, f
+    
+    movlw READ_FALLING
+    movwf read_state
+    goto end_read
+
+
+READ_FALLING_STATE
+
+    btfsc porta, CS
+    goto next_idle_state
+    
+    btfsc porta, CLK
+    goto end_read
+    
+    decfsz bit_count, f
+    goto rising_falling_state
+    
+    movlw READ_EXTRACT
+    movwf read_state
+    goto end_read
+    
+rising_falling_state
+    rlf character, f
+    movlw 0xFE
+    andwf character, f
+    
+    movlw READ_RISING
+    movwf read_state
+    goto end_read
+
+
+READ_EXTRACT_STATE
+
+    btfsc porta, CS
+    goto next_idle_state
+
+    movlw 0x00
+    subwf char_count, w
+    btfss STATUS, Z
+    goto weiter_extract
+    goto first_charachter_extract_state
+
+first_charachter_extract_state
+    movlw 0x05
+    subwf character, w
+    btfsc STATUS, C
+    goto next_reinit_state
+    movlw 0x09
+    addwf character, w
     movwf FSR
+    goto next_rising_state
     
-    movfw character2
-    andlw 0x03
-    
-    addwf FSR
-    movfw character1
-    movwf INDF
+weiter_extract
     movlw 0x1F
-    andwf fsr_bck, w
-    movwf FSR
-     
-    retlw 0x00   
+    andwf FSR, w
+    movwf fsr_read
+    movlw 0x0E
+    subwf fsr_read, w
+    btfsc STATUS, Z
+    goto next_reinit_state
+    incf FSR  
+    movfw character
+    movwf INDF
+
+next_rising_state    
+    clrf character
+    movlw 0x08
+    movwf bit_count
+    incf char_count, f
+    movlw READ_RISING
+    movwf read_state
+    goto end_read
+
+next_idle_state
+    clrf char_count
+    movlw READ_IDLE
+    movwf read_state
+    goto end_read
+
+next_reinit_state
+    clrf character
+    movlw READ_REINIT
+    movwf read_state
+    goto end_read
     
-power_2
+READ_REINIT_STATE
+
+    btfss porta, CS
+    goto end_read
+    
+    movlw READ_IDLE
+    movwf read_state
+    goto end_read
+    
+    
+SHIFT_IDLE_STATE
+    bcf portb, SRCLR
+    bsf portb, SRCLR 
+    bcf portb, RCLK
+    
+    movfw INDF
+    movwf shift_reg
+    decf FSR, f
+    decf act_gigit, f
+    
+    movlw 0x08
+    movwf shift_count
+    
+    movlw SHIFT_FALLING
+    movwf shift_state
+    goto end_display
+
+SHIFT_FALLING_STATE
+    
+    bcf portb, SRCLK
+    btfss shift_reg, 0x00
+    goto shift_falling_state_1
+    bcf portb, SER
+shift_falling_state_1_ret
+    rrf shift_reg, f
+    
+    movlw SHIFT_RISING
+    movwf shift_state
+    goto end_display
+    
+shift_falling_state_1
+    bsf portb, SER
+    goto shift_falling_state_1_ret
+    
+SHIFT_RISING_STATE
+
+    bsf portb, SRCLK
+    
+    decfsz shift_count, f
+    goto shift_rising_state_0
+    
+    movlw SHIFT_RCLK
+shift_rising_state_ret        
+    movwf shift_state
+    goto end_display
+
+shift_rising_state_0
+    movlw SHIFT_FALLING
+    goto shift_rising_state_ret
+
+SHIFT_RCLK_STATE
+    
+    bcf portb, SRCLK
+   
+    movlw 0xf0;
+    iorwf portb, f
+    
+    bsf portb, RCLK
+       
+    movfw act_gigit
+    
+    call set_output_digit
+    andwf portb
+
+    movlw SHIFT_IDLE
+    movwf shift_state
+    goto end_display  
+    
+set_output_digit
     andlw 0x03
     addwf PCL
-    retlw 0x01
-    retlw 0x02
-    retlw 0x04
-    retlw 0x08
+    retlw 0xEF
+    retlw 0xDF
+    retlw 0xBF
+    retlw 0x7F
     
-crc_table
-	movlw 0x08
-	movwf fsr_bck
-crc_loop
-	movfw crc_reg
-	xorwf crc_data, w
-	movwf crc_sum
-	rlf crc_reg
-	bcf crc_reg, 0
-	
-	btfss crc_sum, 7
-	goto crc_weiter
-	movlw 0x1D
-	xorwf crc_reg
-crc_weiter
-	rlf crc_data
-	bcf crc_data, 0
-	decfsz fsr_bck
-	goto crc_loop
-	retlw 0
-	
-	
+    
 ; remaining code goes here
 
     END ; directive 'end of program'
