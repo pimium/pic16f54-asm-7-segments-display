@@ -121,7 +121,7 @@ init
     movwf FSR
     clrf INDF
 
-    movlw 0x08
+    movlw 0x04
     movwf config_reg
     movlw 0x01
     movwf digit0
@@ -160,8 +160,8 @@ dimming
     btfsc STATUS, C
     goto small_display
 turn_off_leds    
-    movlw 0xf0;
-    iorwf portb, f
+    movlw 0xff;
+    andwf portb, f
     goto end_display
     
 small_display
@@ -408,15 +408,15 @@ SHIFT_RCLK_STATE
     
     bcf portb, SRCLK
    
-    movlw 0xf0;
-    iorwf portb, f
+    movlw 0x0f;
+    andwf portb, f
     
     bsf portb, RCLK
        
     movfw act_gigit
     
     call set_output_digit
-    andwf portb
+    iorwf portb
 
     movlw SHIFT_IDLE
     movwf shift_state
@@ -425,10 +425,10 @@ SHIFT_RCLK_STATE
 set_output_digit
     andlw 0x03
     addwf PCL
-    retlw 0xEF
-    retlw 0xDF
-    retlw 0xBF
-    retlw 0x7F
+    retlw 0x10
+    retlw 0x20
+    retlw 0x40
+    retlw 0x80
     
     
 ; remaining code goes here
