@@ -94,6 +94,22 @@ all: .all-post
 .all-post: .all-impl
 # Add your post 'all' code here...
 
+flash: all
+	@echo "Flash\n"
+	@echo "Erase"
+	pk2cmd -P PIC16F54
+	@echo "Program"
+	pk2cmd -P PIC16F54 -M -F dist/default/production/pic16f54_7_segments_asm.production.hex
+	@echo "Verify"
+	pk2cmd -P PIC16F54 -Y -F dist/default/production/pic16f54_7_segments_asm.production.hex
+
+power_on:
+	@echo "Power On"
+	pk2cmd -P PIC16F54 -T
+
+power_off:
+	@echo "Power Off"
+	pk2cmd -P PIC16F54
 
 # help
 help: .help-post
